@@ -1,0 +1,96 @@
+# Sal (Docker) tasks - main.yml
+---
+- name: create sal database directory
+file:
+  path: /srv/sal/db
+  mode: 0777
+  state: directory
+  
+- name: create sal database container
+docker_container:
+  name: postgres-sal
+  image: grahamgilbert/postgres:{{ sal_db_version }}
+  state: started
+  env:
+    DB_NAME: sal
+    DB_USER: admin
+    DB_PASS: password
+  volumes:
+    - /usr/local/sal_data/db:/var/lib/postgresql/data
+
+- name: create sal container
+docker_container:
+  name: sal
+  image: macadmins/sal:{{ sal_version }}
+  state: started
+  env:
+    ADMIN_PASS: pass
+    DB_NAME: sal
+    DB_USER: admin
+    DB_PASS: password
+    VIRTUAL_PORT: 8000
+    VIRTUAL_HOST: a.docker.jacobfgrant.com
+  links:
+    - postgres-sal:db
+
+- name: create munkireport container
+docker_container:
+  name: munkireport
+  image: macadmins/munkireport-php
+  state: started
+  env:
+    VIRTUAL_HOST: b.docker.jacobfgrant.com
+  volumes:
+    - /var/html/app/db
+
+
+
+
+- name: create snipe-it directory
+  file:
+    path: /srv/snipeit/mysql
+    mode: 0777
+    state: directory
+
+- name: create snipe-it database
+  docker_container:
+    name: snipeit-mysql
+    image: mysql:5.6
+    state: started
+    env_file: /root/env
+    volumes:
+      - "/srv/snipeit/mysql:/var/lib/mysql:rw"
+
+- name: create snipe-it container
+  docker_container:
+    name: snipeit
+    image: snipe/snipe-it:v4.1.13
+    state: started
+    exposed_ports:
+      - 80
+    env_file: /root/env
+    env:
+      VIRTUAL_PORT: 80
+      VIRTUAL_HOST: d.docker.jacobfgrant.com
+    links:
+      - snipeit-mysql:mysql
+
+
+docker run -d --name="snipeit" --link snipe-mysql:mysql --env-file=env --expose=80 -e VIRTUAL_PORT=80 -e VIRTUAL_HOST=d.docker.jacobfgrant.com snipe/snipe-it
+
+
+
+docker run --name snipe-mysql -v /srv/snipeit/mysql:/var/lib/mysql:rw --env-file=env -d -P mysql:5.6
+
+# Mysql Parameters
+MYSQL_ROOT_PASSWORD=YOUR_SUPER_SECRET_PASSWORD
+MYSQL_DATABASE=snipeit
+MYSQL_USER=snipeit
+MYSQL_PASSWORD=YOUR_snipeit_USER_PASSWORD
+# Snipe-IT Settings
+APP_ENV=production
+APP_DEBUG=true
+APP_KEY=base64:foKgZhYcJoTNjvgXAvxwIGIALlx2RWSfPJLkp9umd/E=
+APP_URL=http://127.0.0.1:80              
+APP_TIMEZONE=US/Pacific
+APP_LOCALE=en
