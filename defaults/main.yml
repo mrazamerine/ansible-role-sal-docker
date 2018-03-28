@@ -1,0 +1,3 @@
+# # Sal (Docker) defaults - main.yml
+---
+nginx_proxy_version: latest
