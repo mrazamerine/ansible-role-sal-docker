@@ -1,45 +1,56 @@
-# Sal (Docker) tasks - main.yml
+# Sal Docker tasks - main.yml
 ---
 - name: create nginx proxy container
   docker_container:
     name: nginx-proxy
-    image: jwilder/nginx-proxy:{{ nginx_proxy_version }}
+    image: "jwilder/nginx-proxy:{{ nginx_proxy_version }}"
     state: started
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
+      - /etc/letsencrypt/docker:/etc/nginx/certs
+      - /etc/ssl/certs/dhparam.pem:/etc/nginx/dhparam/dhparam.pem
 
 - name: create sal database directory
-file:
-  path: /srv/sal/db
-  mode: 0777
-  state: directory
+  file:
+    path: "{{ sal_directory }}/{{ item }}"
+    mode: 0700
+    state: directory
+  with_items:
+    -
+    - db
   
 - name: create sal database container
-docker_container:
-  name: postgres-sal
-  image: grahamgilbert/postgres:{{ sal_db_version }}
-  state: started
-  env:
-    DB_NAME: sal
-    DB_USER: admin
-    DB_PASS: password
-  volumes:
-    - /usr/local/sal_data/db:/var/lib/postgresql/data
+  docker_container:
+    name: sal-postgres
+    image: "grahamgilbert/postgres:{{ sal_db_version }}"
+    state: started
+    env:
+      DB_NAME: sal
+      DB_USER: sal_admin
+      DB_PASS: "{{ sal_db_password }}"
+    volumes:
+      - "{{ sal_directory }}/db:/var/lib/postgresql/data"
+  register: sal_db_setup
+
+- name: allow sal database to initialize
+  pause:
+    seconds: 30
+  when: sal_db_setup.changed
 
 - name: create sal container
-docker_container:
-  name: sal
-  image: macadmins/sal:{{ sal_version }}
-  state: started
-  env:
-    ADMIN_PASS: pass
-    DB_NAME: sal
-    DB_USER: admin
-    DB_PASS: password
-    VIRTUAL_PORT: 8000
-    VIRTUAL_HOST: a.docker.jacobfgrant.com
-  links:
-    - postgres-sal:db
+  docker_container:
+    name: sal
+    image: "macadmins/sal:{{ sal_version }}"
+    state: started
+    env:
+      ADMIN_PASS: "{{ sal_admin_password }}"
+      DB_NAME: sal
+      DB_USER: sal_admin
+      DB_PASS: "{{ sal_db_password }}"
+      VIRTUAL_PORT: 8000
+      VIRTUAL_HOST: "{{ sal_domain_name }}"
+    links:
+      - sal-postgres:db

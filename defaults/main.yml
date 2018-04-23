@@ -1,3 +1,5 @@
-# # Sal (Docker) defaults - main.yml
+# Sal Docker defaults - main.yml
 ---
 nginx_proxy_version: latest
+
+sal_directory: /srv/sal
