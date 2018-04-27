@@ -13,6 +13,7 @@
     name: nginx-proxy
     image: "jwilder/nginx-proxy:{{ nginx_proxy_version }}"
     state: started
+    restart_policy: always
     ports:
       - "80:80"
       - "443:443"
@@ -35,6 +36,7 @@
     name: sal-postgres
     image: "grahamgilbert/postgres:{{ sal_db_version }}"
     state: started
+    restart_policy: always
     env:
       DB_NAME: sal
       DB_USER: sal_admin
@@ -53,6 +55,7 @@
     name: sal
     image: "macadmins/sal:{{ sal_version }}"
     state: started
+    restart_policy: always
     env:
       ADMIN_PASS: "{{ sal_admin_password }}"
       DB_NAME: sal
