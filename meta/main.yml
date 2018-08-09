@@ -1,0 +1,4 @@
+# Sal Docker meta - main.yml
+---
+dependencies:
+  - { role: docker }
