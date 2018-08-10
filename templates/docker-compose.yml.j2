@@ -1,0 +1,42 @@
+# Docker Compose – Sal
+version: '2.0'
+services:
+  nginx-proxy:
+    image: "jwilder/nginx-proxy:{{ nginx_proxy_version }}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - /etc/ssl/certs/dhparam.pem:/etc/nginx/dhparam/dhparam.pem
+      - "{{ sal_ssl_directory }}:/etc/nginx/certs"
+    restart: always
+
+  sal-postgres:
+    image: "grahamgilbert/postgres:{{ sal_db_version }}"
+    environment:
+      DB_NAME: sal
+      DB_USER: sal_admin
+      DB_PASS: "{{ sal_db_password }}"
+    volumes:
+      - /srv/sal/db:/var/lib/postgresql/data
+    restart: always
+    depends_on:
+      - "nginx-proxy"
+
+  sal:
+    image: "macadmins/sal:{{ sal_version }}"
+    links:
+      - sal-postgres:db
+    environment:
+      ADMIN_PASS: pass
+      DB_NAME: sal
+      DB_USER: sal_admin
+      DB_PASS: "{{ sal_db_password }}"
+      WAIT_FOR_POSTGRES: "true"
+      VIRTUAL_PORT: 8000
+      VIRTUAL_HOST: "{{ sal_domain_name }}"
+    restart: always
+    depends_on:
+      - "nginx-proxy"
+      - "sal-postgres"

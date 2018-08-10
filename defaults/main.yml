@@ -1,5 +1,13 @@
 # Sal Docker defaults - main.yml
 ---
+diffie_hellman_size: 2048
+
 nginx_proxy_version: latest
 
+sal_db_version: 9.6.2
+
 sal_directory: /srv/sal
+
+sal_docker_compose_state: present
+
+sal_docker_compose_stopped: no

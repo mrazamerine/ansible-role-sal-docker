@@ -8,60 +8,32 @@
     - http
     - https
 
-- name: create nginx proxy container
-  docker_container:
-    name: nginx-proxy
-    image: "jwilder/nginx-proxy:{{ nginx_proxy_version }}"
-    state: started
-    restart_policy: always
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-      - /etc/letsencrypt/docker:/etc/nginx/certs
-      - /etc/ssl/certs/dhparam.pem:/etc/nginx/dhparam/dhparam.pem
+- name: generate Diffie-Hellman group
+  command: openssl dhparam -out /etc/ssl/certs/dhparam.pem "{{ diffie_hellman_size }}"
+  args:
+    creates: /etc/ssl/certs/dhparam.pem
 
-- name: create sal database directory
+- name: create sal directories
   file:
     path: "{{ sal_directory }}/{{ item }}"
     mode: 0700
     state: directory
   with_items:
     -
+    - compose
     - db
-  
-- name: create sal database container
-  docker_container:
-    name: sal-postgres
-    image: "grahamgilbert/postgres:{{ sal_db_version }}"
-    state: started
-    restart_policy: always
-    env:
-      DB_NAME: sal
-      DB_USER: sal_admin
-      DB_PASS: "{{ sal_db_password }}"
-    volumes:
-      - "{{ sal_directory }}/db:/var/lib/postgresql/data"
-  register: sal_db_setup
 
-- name: allow sal database to initialize
-  pause:
-    seconds: 30
-  when: sal_db_setup.changed
+- name: apply docker compose template
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ sal_directory }}/compose/docker-compose.yml"
+    owner: root
+    group: root
+    mode: 0600
 
-- name: create sal container
-  docker_container:
-    name: sal
-    image: "macadmins/sal:{{ sal_version }}"
-    state: started
-    restart_policy: always
-    env:
-      ADMIN_PASS: "{{ sal_admin_password }}"
-      DB_NAME: sal
-      DB_USER: sal_admin
-      DB_PASS: "{{ sal_db_password }}"
-      VIRTUAL_PORT: 8000
-      VIRTUAL_HOST: "{{ sal_domain_name }}"
-    links:
-      - sal-postgres:db
+- name: run docker compose
+  docker_service:
+    project_src: "{{ sal_directory }}/compose/"
+    remove_volumes: no
+    state: "{{ sal_docker_compose_state }}"
+    stopped: "{{ sal_docker_compose_stopped }}"
