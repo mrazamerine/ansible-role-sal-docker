@@ -29,7 +29,7 @@ services:
     links:
       - sal-postgres:db
     environment:
-      ADMIN_PASS: pass
+      ADMIN_PASS: {{ sal_admin_password }}
       DB_NAME: sal
       DB_USER: sal_admin
       DB_PASS: "{{ sal_db_password }}"
